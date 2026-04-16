@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lab 7 Web Teleop</title>
+</head>
+<body>
+
+<!--Heading-->
+<h1>Lab 7: Web Teleop</h1>
+<p>To use:</p>
+<ul>
+    <li>Run a Rosbridge connection at <code>ws://localhost:9090</code></li>
+    <li>Start publishing ROS messages to <code>/my_topic</code></li>
+</ul>
+<hr/>
+
+<!--Connection status-->
+<p>Connection: <span id="status" style="font-weight: bold;">N/A</span></p>
+<hr/>
+
+<!--Directional controls-->
+<h2>Select a column</h2>
+<button id="select-column-1">1</button>
+<button id="select-column-2">2</button>
+<button id="select-column-3">3</button>
+<button id="select-column-4">4</button>
+<br>
+<br>
+<button id="stop">STOP</button>
+<hr/>
+
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+<script type="text/javascript" type="text/javascript">
+    // Our JavaScript code will go here
+</script>
+</body>
+</html>
