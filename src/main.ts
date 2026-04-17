@@ -6,17 +6,22 @@ import {Ros, Topic} from 'roslib'
 // ---------------------------------------------------------------------------
 const connectionStatusLabel = document.getElementById("status")!
 const feedbackStatusLabel = document.getElementById("feedback-status")!
+const rosIpInput = document.getElementById('ros-ip-input') as HTMLInputElement
+const setRosIpButton = document.getElementById('set-ros-ip')!
+const connectionAddressLabel = document.getElementById('connection-address')!
 const selectColumn1Button = document.getElementById('select-column-1')!
 const selectColumn2Button = document.getElementById('select-column-2')!
 const selectColumn3Button = document.getElementById('select-column-3')!
 const selectColumn4Button = document.getElementById('select-column-4')!
 const stopButton = document.getElementById('stop')!
 const cameraFeedImage = document.getElementById('camera-feed') as HTMLImageElement
+const cameraTopicInput = document.getElementById('camera-topic-input') as HTMLInputElement
+const setCameraTopicButton = document.getElementById('set-camera-topic')!
 
 // ---------------------------------------------------------------------------
 // Rosbridge connection
 // ---------------------------------------------------------------------------
-const ros = new Ros({url: 'ws://localhost:9090'})
+const ros = new Ros()
 
 ros.on('connection', () => {
     console.log('Connected to rosbridge.')
@@ -57,21 +62,50 @@ const cmdVelTopic = new Topic({
     messageType: 'geometry_msgs/msg/Twist',
 })
 
-const cameraImageTopic = new Topic({
-    ros,
-    name: '/camera/color/image_raw/compressed',
-    messageType: 'sensor_msgs/msg/CompressedImage',
-    throttle_rate: 1000 / CAMERA_FEED_RATE_HZ,
-})
+let cameraImageTopic: Topic | undefined
 
-cameraImageTopic.subscribe((message: any) => {
+function handleCameraImage(message: any): void {
     if (message.data.length === 0) {
         return
     }
 
     const mimeType = message.format?.includes('png') ? 'image/png' : 'image/jpeg'
     cameraFeedImage.src = `data:${mimeType};base64,${message.data}`
-})
+}
+
+function setRosConnection(ipAddress: string): void {
+    const trimmedIp = ipAddress.trim()
+    if (trimmedIp.length === 0) {
+        return
+    }
+
+    const rosUrl = `ws://${trimmedIp}:9090`
+    rosIpInput.value = trimmedIp
+    connectionAddressLabel.textContent = trimmedIp
+    connectionStatusLabel.textContent = `Connecting to ${rosUrl}...`
+    ros.close()
+    ros.connect(rosUrl)
+}
+
+function setCameraTopic(topicName: string): void {
+    const trimmedTopic = topicName.trim()
+    if (trimmedTopic.length === 0) {
+        return
+    }
+
+    cameraTopicInput.value = trimmedTopic
+    if (cameraImageTopic !== undefined) {
+        cameraImageTopic.unsubscribe()
+    }
+
+    cameraImageTopic = new Topic({
+        ros,
+        name: trimmedTopic,
+        messageType: 'sensor_msgs/msg/CompressedImage',
+        throttle_rate: 1000 / CAMERA_FEED_RATE_HZ,
+    })
+    cameraImageTopic.subscribe(handleCameraImage)
+}
 
 function publishTwist(linearX: number): void {
     cmdVelTopic.publish({
@@ -148,3 +182,9 @@ selectColumn2Button.addEventListener('click', () => gotoColumn(1))
 selectColumn3Button.addEventListener('click', () => gotoColumn(2))
 selectColumn4Button.addEventListener('click', () => gotoColumn(3))
 stopButton.addEventListener('click', stopMovement)
+
+setRosIpButton.addEventListener('click', () => setRosConnection(rosIpInput.value))
+setCameraTopicButton.addEventListener('click', () => setCameraTopic(cameraTopicInput.value))
+
+setRosConnection(rosIpInput.value)
+setCameraTopic(cameraTopicInput.value)

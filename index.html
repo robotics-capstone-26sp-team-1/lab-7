@@ -10,9 +10,13 @@
 
 <!--Heading-->
 <h1>Lab 7: Web Teleop</h1>
+
+<label for="ros-ip-input">ROS bridge IP Address: </label><input id="ros-ip-input" type="text" value="localhost"/>
+<button id="set-ros-ip">Set IP</button>
+
 <p>To use:</p>
 <ul>
-    <li>Run a Rosbridge connection at <code>ws://localhost:9090</code></li>
+    <li>Run a Rosbridge connection at <code>ws://<span id="connection-address">localhost</span>:9090</code></li>
     <li>Press the column buttons to send translation commands</li>
 </ul>
 <hr/>
@@ -36,10 +40,15 @@
 <hr/>
 
 <h2>Camera Feed</h2>
+
+<label for="camera-topic-input">Camera Topic:</label><input id="camera-topic-input" type="text"
+                                                            value="/camera/color/image_raw/compressed"/>
+<button id="set-camera-topic">Set Topic</button>
+
 <img
-    id="camera-feed"
-    alt="Robot camera feed"
-    style="max-width: 100%; height: auto; rotate: 90deg; margin-top: 100px;"
+        id="camera-feed"
+        alt="Robot camera feed"
+        style="max-width: 100%; height: auto; rotate: 90deg; margin-top: 100px;"
 />
 
 <script type="module" src="/src/main.ts"></script>
