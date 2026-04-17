@@ -11,6 +11,7 @@ const selectColumn2Button = document.getElementById('select-column-2')!
 const selectColumn3Button = document.getElementById('select-column-3')!
 const selectColumn4Button = document.getElementById('select-column-4')!
 const stopButton = document.getElementById('stop')!
+const cameraFeedImage = document.getElementById('camera-feed') as HTMLImageElement
 
 // ---------------------------------------------------------------------------
 // Rosbridge connection
@@ -37,6 +38,7 @@ const COLUMN_POSITIONS = [0.0, 0.5, 1.0, 1.5]
 const CMD_VEL_LINEAR_SPEED_MPS = 0.2
 const CMD_VEL_RATE_HZ = 10
 const CMD_VEL_INTERVAL_MS = 1000 / CMD_VEL_RATE_HZ
+const CAMERA_FEED_RATE_HZ = 10
 const COLUMN_STEP_METERS = 0.5
 const PUBLISHES_PER_STEP = Math.round(
     COLUMN_STEP_METERS / (CMD_VEL_LINEAR_SPEED_MPS / CMD_VEL_RATE_HZ),
@@ -53,6 +55,22 @@ const cmdVelTopic = new Topic({
     ros,
     name: '/stretch/cmd_vel',
     messageType: 'geometry_msgs/msg/Twist',
+})
+
+const cameraImageTopic = new Topic({
+    ros,
+    name: '/camera/color/image_raw/compressed',
+    messageType: 'sensor_msgs/msg/CompressedImage',
+    throttle_rate: 1000 / CAMERA_FEED_RATE_HZ,
+})
+
+cameraImageTopic.subscribe((message: any) => {
+    if (message.data.length === 0) {
+        return
+    }
+
+    const mimeType = message.format?.includes('png') ? 'image/png' : 'image/jpeg'
+    cameraFeedImage.src = `data:${mimeType};base64,${message.data}`
 })
 
 function publishTwist(linearX: number): void {
