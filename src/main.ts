@@ -22,9 +22,12 @@ const setCameraTopicButton = document.getElementById('set-camera-topic')!
 // Rosbridge connection
 // ---------------------------------------------------------------------------
 const ros = new Ros()
+let rosConnected = false
+let pendingRosUrl: string | undefined
 
 ros.on('connection', () => {
     console.log('Connected to rosbridge.')
+    rosConnected = true
     connectionStatusLabel.textContent = 'Connected'
 })
 ros.on('error', (err) => {
@@ -33,6 +36,16 @@ ros.on('error', (err) => {
 })
 ros.on('close', () => {
     console.log('Rosbridge connection closed.')
+    rosConnected = false
+
+    if (pendingRosUrl !== undefined) {
+        const nextUrl = pendingRosUrl
+        pendingRosUrl = undefined
+        connectionStatusLabel.textContent = `Connecting to ${nextUrl}...`
+        ros.connect(nextUrl)
+        return
+    }
+
     connectionStatusLabel.textContent = 'Connection Closed.'
 })
 
@@ -82,8 +95,16 @@ function setRosConnection(ipAddress: string): void {
     const rosUrl = `ws://${trimmedIp}:9090`
     rosIpInput.value = trimmedIp
     connectionAddressLabel.textContent = trimmedIp
+    pendingRosUrl = rosUrl
+
+    if (rosConnected) {
+        connectionStatusLabel.textContent = `Reconnecting to ${rosUrl}...`
+        ros.close()
+        return
+    }
+
+    pendingRosUrl = undefined
     connectionStatusLabel.textContent = `Connecting to ${rosUrl}...`
-    ros.close()
     ros.connect(rosUrl)
 }
 
