@@ -1,5 +1,5 @@
 import './style.css'
-import {Ros, Action} from 'roslib'
+import {Ros, Topic} from 'roslib'
 
 // ---------------------------------------------------------------------------
 // HTML components.
@@ -34,42 +34,63 @@ ros.on('close', () => {
 // Column positions in meters from the robot's starting position
 // ---------------------------------------------------------------------------
 const COLUMN_POSITIONS = [0.0, 0.5, 1.0, 1.5]
+const CMD_VEL_LINEAR_SPEED_MPS = 0.2
+const CMD_VEL_RATE_HZ = 10
+const CMD_VEL_INTERVAL_MS = 1000 / CMD_VEL_RATE_HZ
+const COLUMN_STEP_METERS = 0.5
+const PUBLISHES_PER_STEP = Math.round(
+    COLUMN_STEP_METERS / (CMD_VEL_LINEAR_SPEED_MPS / CMD_VEL_RATE_HZ),
+)
 
 // Index of the column the robot is currently at. Assumes robot starts at col 0.
 let currentColumn = 0
-let activeGoalId: string | undefined
+let activeMoveTimer: number | undefined
 
 // ---------------------------------------------------------------------------
-// Action client — roslib 2.1 / ROS2 style
-// Note: translate_mobile_base always takes a relative delta, not an absolute
-// position. The delta is computed from COLUMN_POSITIONS.
+// cmd_vel publisher — publish velocity commands at 10 Hz.
 // ---------------------------------------------------------------------------
-const baseClient = new Action({
+const cmdVelTopic = new Topic({
     ros,
-    name: '/stretch_controller/follow_joint_trajectory',
-    actionType: 'control_msgs/action/FollowJointTrajectory',
+    name: '/stretch/cmd_vel',
+    messageType: 'geometry_msgs/msg/Twist',
 })
 
-const feedbackCallback = (feedback: unknown) => {
-    console.log('Feedback:', feedback)
-    const feedbackStatus = document.getElementById('feedback-status')
-    if (feedbackStatus) {
-        feedbackStatus.textContent = JSON.stringify(feedback)
-    }
+function publishTwist(linearX: number): void {
+    cmdVelTopic.publish({
+        linear: {x: linearX, y: 0.0, z: 0.0},
+        angular: {x: 0.0, y: 0.0, z: 0.0},
+    })
 }
 
-const resultCallback = (result: unknown, column: number) => {
-    console.log(`Reached column ${column}. Result:`, result)
-    currentColumn = column
-    activeGoalId = ""
-    feedbackStatusLabel.textContent = `At column ${column}`
-}
+function startLinearMove(deltaMeters: number, targetColumn: number): void {
+    const direction = Math.sign(deltaMeters)
+    const totalPublishes = Math.round(
+        Math.abs(deltaMeters) / COLUMN_STEP_METERS,
+    ) * PUBLISHES_PER_STEP
 
+    let publishCount = 0
+    activeMoveTimer = window.setInterval(() => {
+        if (publishCount >= totalPublishes) {
+            if (activeMoveTimer !== undefined) {
+                window.clearInterval(activeMoveTimer)
+                activeMoveTimer = undefined
+            }
+            publishTwist(0.0)
+            currentColumn = targetColumn
+            feedbackStatusLabel.textContent = `At column ${targetColumn}`
+            console.log(`Reached column ${targetColumn}`)
+            return
+        }
+
+        publishTwist(direction * CMD_VEL_LINEAR_SPEED_MPS)
+        publishCount += 1
+    }, CMD_VEL_INTERVAL_MS)
+}
 
 // ---------------------------------------------------------------------------
 // gotoColumn(n)
 // n : target column index (0–3)
-// Computes the relative delta from the current position and sends a goal.
+// Computes the relative delta from the current position and sends cmd_vel.
 // Does nothing if already at the target column.
 // ---------------------------------------------------------------------------
 function gotoColumn(n: number): void {
@@ -85,44 +106,21 @@ function gotoColumn(n: number): void {
 
     const delta = COLUMN_POSITIONS[n] - COLUMN_POSITIONS[currentColumn]
     console.log(`Moving from column ${currentColumn} to column ${n} (delta: ${delta.toFixed(2)} m)`)
-
-    // Duration scales with distance so speed stays roughly constant (~0.25 m/s)
-    const durationSecs = Math.abs(delta) / 0.25
-
-    const goalMessage = {
-        trajectory: {
-            joint_names: ['translate_mobile_base'],
-            points: [
-                {
-                    positions: [delta],
-                    velocities: [],
-                    accelerations: [],
-                    // ROS2 uses sec/nanosec, not secs/nsecs
-                    time_from_start: {
-                        sec: Math.ceil(durationSecs),
-                        nanosec: 0,
-                    },
-                },
-            ],
-        },
-    }
-
-    activeGoalId = baseClient.sendGoal(
-        goalMessage,
-        (result) => resultCallback(result, n),
-        feedbackCallback,
-    )
+    stopMovement()
+    feedbackStatusLabel.textContent = `Moving to column ${n}`
+    startLinearMove(delta, n)
 }
 
 // ---------------------------------------------------------------------------
-// stopMovement — cancel the active goal
+// stopMovement — stop publishing movement commands.
 // ---------------------------------------------------------------------------
 function stopMovement(): void {
-    if (activeGoalId) {
-        baseClient.cancelGoal(activeGoalId)
-        activeGoalId = undefined
+    if (activeMoveTimer !== undefined) {
+        window.clearInterval(activeMoveTimer)
+        activeMoveTimer = undefined
     }
 
+    publishTwist(0.0)
     feedbackStatusLabel.textContent = 'Stopped'
     console.log('Stop command sent.')
 }
