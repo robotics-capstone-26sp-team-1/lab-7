@@ -6,6 +6,11 @@ import {Ros, Action} from 'roslib'
 // ---------------------------------------------------------------------------
 const connectionStatusLabel = document.getElementById("status")!
 const feedbackStatusLabel = document.getElementById("feedback-status")!
+const selectColumn1Button = document.getElementById('select-column-1')!
+const selectColumn2Button = document.getElementById('select-column-2')!
+const selectColumn3Button = document.getElementById('select-column-3')!
+const selectColumn4Button = document.getElementById('select-column-4')!
+const stopButton = document.getElementById('stop')!
 
 // ---------------------------------------------------------------------------
 // Rosbridge connection
@@ -122,5 +127,8 @@ function stopMovement(): void {
     console.log('Stop command sent.')
 }
 
-// Export so other modules / the UI can call these
-export {gotoColumn, stopMovement}
+selectColumn1Button.addEventListener('click', () => gotoColumn(0))
+selectColumn2Button.addEventListener('click', () => gotoColumn(1))
+selectColumn3Button.addEventListener('click', () => gotoColumn(2))
+selectColumn4Button.addEventListener('click', () => gotoColumn(3))
+stopButton.addEventListener('click', stopMovement)
